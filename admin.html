@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理后台</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <a class="site-title" href="index.html" id="siteTitle">BLOG</a>
+  <nav>
+    <a href="index.html">首页</a>
+    <a href="#" id="logoutBtn" style="display:none">退出</a>
+  </nav>
+</header>
+
+<!-- 登录 -->
+<div class="admin-wrap" id="loginView" style="display:none">
+  <h1>登录后台</h1>
+  <div class="field">
+    <label for="tokenInput">GITHUB PERSONAL ACCESS TOKEN</label>
+    <input type="password" id="tokenInput" placeholder="ghp_... 或 github_pat_..." autocomplete="off">
+  </div>
+  <button class="btn primary" id="loginBtn">登 录</button>
+  <p class="msg err" id="loginMsg"></p>
+</div>
+
+<!-- 文章列表 -->
+<div class="admin-wrap" id="listView" style="display:none">
+  <h1>文章管理</h1>
+  <div class="toolbar">
+    <button class="btn primary" id="newBtn">＋ 写新文章</button>
+  </div>
+  <div id="adminList"></div>
+  <p class="msg" id="listMsg"></p>
+</div>
+
+<!-- 编辑器 -->
+<div class="admin-wrap" id="editorView" style="display:none">
+  <h1 id="editorTitle">写文章</h1>
+  <div class="field">
+    <label for="titleInput">标题</label>
+    <input type="text" id="titleInput" placeholder="文章标题">
+  </div>
+  <div class="field">
+    <label for="bodyInput">正文（Markdown）</label>
+    <textarea id="bodyInput" placeholder="用 Markdown 书写…"></textarea>
+  </div>
+  <div class="toolbar">
+    <button class="btn primary" id="publishBtn">发 布</button>
+    <button class="btn" id="backBtn">返 回</button>
+  </div>
+  <p class="msg" id="editorMsg"></p>
+</div>
+
+<script src="config.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>

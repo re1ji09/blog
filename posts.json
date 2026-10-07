@@ -1,0 +1,8 @@
+[
+  {
+    "title": "你好，世界",
+    "date": "2026-10-07",
+    "file": "2026-10-07-hello-world.md",
+    "excerpt": "这是你的第一篇文章。这个博客是纯静态的，部署在 GitHub Pages 上，但你依然可以通过 admin.html 后台在线管理它……"
+  }
+]
