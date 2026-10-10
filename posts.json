@@ -1,1 +1,8 @@
-[]
+[
+  {
+    "title": "hello world",
+    "date": "2026-10-10",
+    "file": "2026-10-10-hello-world.md",
+    "excerpt": "nihao"
+  }
+]
