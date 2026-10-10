@@ -8,7 +8,7 @@ async function load() {
   try {
     const [metaRes, mdRes] = await Promise.all([
       fetch("posts.json", { cache: "no-store" }),
-      fetch("posts/" + file, { cache: "no-store" })
+      fetch("posts/" + encodeURIComponent(file), { cache: "no-store" })
     ]);
     const metas = await metaRes.json();
     const meta = metas.find(m => m.file === file);

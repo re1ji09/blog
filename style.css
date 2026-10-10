@@ -19,11 +19,15 @@ a { color: var(--black); text-decoration: none; }
 
 /* ===== 头部 ===== */
 header {
+  border-bottom: 3px solid var(--black);
+}
+.header-inner {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
+  max-width: 1200px;
+  margin: 0 auto;
   padding: 2rem 2rem 1.5rem;
-  border-bottom: 3px solid var(--black);
 }
 header .site-title {
   font-size: 1.6rem;
@@ -158,7 +162,7 @@ header nav a:hover { border-bottom-color: var(--black); }
 @media (max-width: 720px) {
   .layout { grid-template-columns: 1fr; padding: 1.2rem; }
   .sidebar { order: -1; }
-  header { padding: 1.2rem; }
+  .header-inner { padding: 1.2rem; }
   .post-page, .admin-wrap { padding: 1.2rem; }
   .btn { padding: .7rem 1.2rem; }
 }

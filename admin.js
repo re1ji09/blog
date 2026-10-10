@@ -1,6 +1,9 @@
 const TOKEN_KEY = "blog_gh_token";
 const $ = id => document.getElementById(id);
 
+$("siteTitle").textContent = CONFIG.siteTitle;
+document.title = "管理后台 - " + CONFIG.siteTitle;
+
 let token = localStorage.getItem(TOKEN_KEY) || "";
 let postsData = [];
 
@@ -74,17 +77,26 @@ async function loadList() {
 function renderList() {
   const el = $("adminList");
   if (!postsData.length) { el.innerHTML = '<p class="empty">暂无文章。</p>'; return; }
-  el.innerHTML = postsData.map((p, i) => `
-    <div class="admin-post-row">
+  el.innerHTML = postsData.map(p => `
+    <div class="admin-post-row" data-file="${escapeHtml(p.file)}">
       <span class="t">${escapeHtml(p.title)}</span>
       <span class="d">${p.date}</span>
       <div class="row-actions">
-        <button class="btn" onclick="editPost(${i})">编辑</button>
-        <button class="btn" onclick="deletePost(${i})">删除</button>
+        <button class="btn edit-btn" type="button">编辑</button>
+        <button class="btn del-btn" type="button">删除</button>
       </div>
     </div>
   `).join("");
 }
+
+$("adminList").addEventListener("click", e => {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+  const row = btn.closest(".admin-post-row");
+  if (!row || !row.dataset.file) return;
+  if (btn.classList.contains("edit-btn")) editPost(row.dataset.file);
+  if (btn.classList.contains("del-btn")) deletePost(row.dataset.file);
+});
 
 /* ===== 编辑器 ===== */
 let editingIndex = -1;
@@ -99,7 +111,9 @@ $("newBtn").addEventListener("click", () => {
   show("editorView");
 });
 
-window.editPost = async function(index) {
+window.editPost = async function(file) {
+  const index = postsData.findIndex(p => p.file === file);
+  if (index < 0) return;
   editingIndex = index;
   const meta = postsData[index];
   editingFile = meta.file;
@@ -107,7 +121,7 @@ window.editPost = async function(index) {
   $("titleInput").value = meta.title;
   $("editorMsg").textContent = "";
   try {
-    const res = await fetch("posts/" + meta.file, { cache: "no-store" });
+    const res = await fetch("posts/" + encodeURIComponent(meta.file), { cache: "no-store" });
     $("bodyInput").value = await res.text();
   } catch (e) { $("bodyInput").value = ""; $("editorMsg").textContent = "读取原文失败: " + e.message; }
   show("editorView");
@@ -162,47 +176,84 @@ $("publishBtn").addEventListener("click", async () => {
   }
 });
 
-async function putFile(path, base64, message) {
-  let sha = "";
-  try {
-    const r = await fetch(`https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${path}?ref=${CONFIG.branch}`, { headers: apiHeaders() });
-    if (r.ok) sha = (await r.json()).sha;
-  } catch (e) {}
-  const payload = { message, content: base64, branch: CONFIG.branch };
-  if (sha) payload.sha = sha;
-  const res = await fetch(`https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${path}`, {
-    method: "PUT", headers: apiHeaders(), body: JSON.stringify(payload)
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || `HTTP ${res.status}`);
+/* ===== GitHub 写入（带 409/422/5xx 重试，防止连续提交冲突导致半成功） ===== */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const ghApi = path => `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${path.split("/").map(encodeURIComponent).join("/")}`;
+
+async function withRetry(fn) {
+  let lastErr;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastErr = e;
+      if (e.status === 409 || e.status === 422 || e.status >= 500) { await sleep(800 * (attempt + 1)); continue; }
+      throw e;
+    }
   }
+  throw lastErr;
 }
 
-window.deletePost = async function(index) {
-  if (!confirm("确定删除这篇文章吗？")) return;
-  const meta = postsData[index];
+async function putFile(path, base64, message) {
+  return withRetry(async () => {
+    let sha = "";
+    try {
+      const r = await fetch(`${ghApi(path)}?ref=${CONFIG.branch}`, { headers: apiHeaders() });
+      if (r.ok) sha = (await r.json()).sha;
+    } catch (e) {}
+    const payload = { message, content: base64, branch: CONFIG.branch };
+    if (sha) payload.sha = sha;
+    const res = await fetch(ghApi(path), { method: "PUT", headers: apiHeaders(), body: JSON.stringify(payload) });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      const e = new Error(err.message || `HTTP ${res.status}`);
+      e.status = res.status;
+      throw e;
+    }
+  });
+}
+
+window.deletePost = async function(file) {
+  const meta = postsData.find(p => p.file === file);
+  if (!meta) return;
+  if (!confirm(`确定删除《${meta.title}》吗？`)) return;
+  const metaList = postsData.filter(p => p.file !== file);
   try {
-    await deleteFile(`posts/${meta.file}`);
-    const metaList = postsData.filter((_, i) => i !== index);
+    // 先更新索引：保证站点立刻不再出现死链卡片；md 文件随后清理
     await putFile("posts.json", toBase64(JSON.stringify(metaList, null, 2)), `删除文章: ${meta.title}`);
     postsData = metaList;
     renderList();
     $("listMsg").textContent = "已删除，Pages 生效可能需要 1-3 分钟。";
+    try {
+      await deleteFile(`posts/${file}`);
+    } catch (e2) {
+      $("listMsg").textContent = "文章已下线，但仓库里的 md 文件清理失败，可稍后再删：" + e2.message;
+    }
   } catch (e) {
     $("listMsg").textContent = "删除失败: " + e.message;
   }
 };
 
 async function deleteFile(path) {
-  const r = await fetch(`https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${path}?ref=${CONFIG.branch}`, { headers: apiHeaders() });
-  if (!r.ok) { if (r.status === 404) return; throw new Error((await r.json().catch(() => ({}))).message || `HTTP ${r.status}`); }
-  const d = await r.json();
-  const res = await fetch(`https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${path}`, {
-    method: "DELETE", headers: apiHeaders(),
-    body: JSON.stringify({ message: `删除 ${path}`, sha: d.sha, branch: CONFIG.branch })
+  return withRetry(async () => {
+    const r = await fetch(`${ghApi(path)}?ref=${CONFIG.branch}`, { headers: apiHeaders() });
+    if (!r.ok) {
+      if (r.status === 404) return;
+      const e = new Error((await r.json().catch(() => ({}))).message || `HTTP ${r.status}`);
+      e.status = r.status;
+      throw e;
+    }
+    const d = await r.json();
+    const res = await fetch(ghApi(path), {
+      method: "DELETE", headers: apiHeaders(),
+      body: JSON.stringify({ message: `删除 ${path}`, sha: d.sha, branch: CONFIG.branch })
+    });
+    if (!res.ok) {
+      const e = new Error((await res.json().catch(() => ({}))).message || `HTTP ${res.status}`);
+      e.status = res.status;
+      throw e;
+    }
   });
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || `HTTP ${res.status}`);
 }
 
 function escapeHtml(s) {
