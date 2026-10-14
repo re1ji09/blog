@@ -45,3 +45,35 @@ document.getElementById("searchInput").addEventListener("input", e => {
 });
 
 loadPosts();
+
+/* ===== 每日一言 ===== */
+let quotes = [];
+let quoteIdx = 0;
+
+async function loadQuotes() {
+  try {
+    const res = await fetch("quotes.json", { cache: "no-store" });
+    quotes = await res.json();
+    if (quotes.length) renderQuote();
+    else hideQuote();
+  } catch (e) { hideQuote(); }
+}
+
+function renderQuote() {
+  const q = quotes[quoteIdx % quotes.length];
+  document.getElementById("quoteText").textContent = q.text || "";
+  const authorEl = document.getElementById("quoteAuthor");
+  authorEl.textContent = q.author ? `— ${q.author}` : "";
+}
+
+function hideQuote() {
+  document.getElementById("quoteCard").style.display = "none";
+}
+
+document.getElementById("quoteCard").addEventListener("click", () => {
+  if (quotes.length < 2) return;
+  quoteIdx = (quoteIdx + 1) % quotes.length;
+  renderQuote();
+});
+
+loadQuotes();

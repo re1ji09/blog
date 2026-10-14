@@ -33,9 +33,39 @@
   <h1>文章管理</h1>
   <div class="toolbar">
     <button class="btn primary" id="newBtn">＋ 写新文章</button>
+    <button class="btn" id="toQuotesBtn">每日一言</button>
   </div>
   <div id="adminList"></div>
   <p class="msg" id="listMsg"></p>
+</div>
+
+<!-- 每日一言列表 -->
+<div class="admin-wrap" id="quotesListView" style="display:none">
+  <h1>每日一言管理</h1>
+  <div class="toolbar">
+    <button class="btn primary" id="newQuoteBtn">＋ 新增一言</button>
+    <button class="btn" id="toPostsBtn">← 文章管理</button>
+  </div>
+  <div id="quotesAdminList"></div>
+  <p class="msg" id="quotesListMsg"></p>
+</div>
+
+<!-- 每日一言编辑 -->
+<div class="admin-wrap" id="quoteEditorView" style="display:none">
+  <h1 id="quoteEditorTitle">新增一言</h1>
+  <div class="field">
+    <label for="quoteTextInput">内容</label>
+    <textarea id="quoteTextInput" placeholder="一句话，不加 Markdown"></textarea>
+  </div>
+  <div class="field">
+    <label for="quoteAuthorInput">出处 / 作者（可选）</label>
+    <input type="text" id="quoteAuthorInput" placeholder="留空也可以">
+  </div>
+  <div class="toolbar">
+    <button class="btn primary" id="quoteSaveBtn">保 存</button>
+    <button class="btn" id="quoteBackBtn">返 回</button>
+  </div>
+  <p class="msg" id="quoteEditorMsg"></p>
 </div>
 
 <!-- 编辑器 -->

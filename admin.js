@@ -24,9 +24,12 @@ function toBase64(str) {
 }
 
 function show(viewId) {
-  ["loginView", "listView", "editorView"].forEach(id => $(id).style.display = "none");
+  ["loginView", "listView", "editorView", "quotesListView", "quoteEditorView"].forEach(id => $(id).style.display = "none");
   $(viewId).style.display = "";
 }
+
+let quotesData = [];
+let editingQuoteIndex = -1;
 
 /* ===== 登录 ===== */
 if (token) {
@@ -259,3 +262,100 @@ async function deleteFile(path) {
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
+
+/* ===== 每日一言管理 ===== */
+async function loadQuotesList() {
+  $("quotesListMsg").textContent = "";
+  try {
+    const res = await fetch("quotes.json", { cache: "no-store" });
+    quotesData = await res.json();
+    renderQuotesList();
+  } catch (e) {
+    quotesData = [];
+    renderQuotesList();
+    $("quotesListMsg").textContent = "加载失败: " + e.message;
+  }
+}
+
+function renderQuotesList() {
+  const el = $("quotesAdminList");
+  if (!quotesData.length) { el.innerHTML = '<p class="empty">暂无一言。</p>'; return; }
+  el.innerHTML = quotesData.map((q, i) => `
+    <div class="admin-post-row" data-idx="${i}">
+      <span class="t">${escapeHtml(q.text)}</span>
+      <span class="d">${q.author ? escapeHtml(q.author) : "—"}</span>
+      <div class="row-actions">
+        <button class="btn" type="button" data-act="edit">编辑</button>
+        <button class="btn" type="button" data-act="del">删除</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+$("quotesAdminList").addEventListener("click", e => {
+  const btn = e.target.closest("button[data-act]");
+  if (!btn) return;
+  const row = btn.closest(".admin-post-row");
+  const idx = row ? Number(row.dataset.idx) : -1;
+  if (idx < 0) return;
+  if (btn.dataset.act === "edit") openQuoteEditor(idx);
+  if (btn.dataset.act === "del") deleteQuote(idx);
+});
+
+function openQuoteEditor(idx) {
+  editingQuoteIndex = idx;
+  if (idx >= 0) {
+    const q = quotesData[idx];
+    $("quoteEditorTitle").textContent = "编辑一言";
+    $("quoteTextInput").value = q.text || "";
+    $("quoteAuthorInput").value = q.author || "";
+  } else {
+    $("quoteEditorTitle").textContent = "新增一言";
+    $("quoteTextInput").value = "";
+    $("quoteAuthorInput").value = "";
+  }
+  $("quoteEditorMsg").textContent = "";
+  show("quoteEditorView");
+}
+
+$("quoteSaveBtn").addEventListener("click", async () => {
+  const text = $("quoteTextInput").value.trim();
+  const author = $("quoteAuthorInput").value.trim();
+  if (!text) { $("quoteEditorMsg").textContent = "内容不能为空"; return; }
+  $("quoteSaveBtn").disabled = true;
+  $("quoteEditorMsg").textContent = "保存中…";
+  try {
+    const entry = { text, ...(author ? { author } : {}) };
+    const list = [...quotesData];
+    if (editingQuoteIndex >= 0) list[editingQuoteIndex] = entry;
+    else list.push(entry);
+    await putFile("quotes.json", toBase64(JSON.stringify(list, null, 2)),
+      (editingQuoteIndex >= 0 ? "更新" : "新增") + `每日一言: ${text.slice(0, 20)}`);
+    quotesData = list;
+    $("quoteEditorMsg").textContent = "保存成功";
+    setTimeout(() => { show("quotesListView"); }, 600);
+  } catch (e) {
+    $("quoteEditorMsg").textContent = "失败: " + e.message;
+  } finally {
+    $("quoteSaveBtn").disabled = false;
+  }
+});
+
+async function deleteQuote(idx) {
+  const q = quotesData[idx];
+  if (!confirm(`确定删除这句吗？\n「${q.text}」`)) return;
+  const list = quotesData.filter((_, i) => i !== idx);
+  try {
+    await putFile("quotes.json", toBase64(JSON.stringify(list, null, 2)), `删除每日一言: ${q.text.slice(0, 20)}`);
+    quotesData = list;
+    renderQuotesList();
+    $("quotesListMsg").textContent = "已删除";
+  } catch (e) {
+    $("quotesListMsg").textContent = "删除失败: " + e.message;
+  }
+}
+
+$("quoteBackBtn").addEventListener("click", () => { show("quotesListView"); loadQuotesList(); });
+$("toQuotesBtn").addEventListener("click", () => { show("quotesListView"); loadQuotesList(); });
+$("toPostsBtn").addEventListener("click", () => { show("listView"); loadList(); });
+$("newQuoteBtn").addEventListener("click", () => openQuoteEditor(-1));

@@ -87,6 +87,28 @@ header nav a:hover { border-bottom-color: var(--black); }
 }
 .sidebar input[type="search"]:focus { box-shadow: 4px 4px 0 var(--black); }
 
+/* ===== 每日一言 ===== */
+.quote-card {
+  width: 100%;
+  margin-top: 1.2rem;
+  border: 2px solid var(--black);
+  padding: 1.2rem 1.4rem;
+  background: var(--white);
+  cursor: pointer;
+  user-select: none;
+  transition: background .12s ease, color .12s ease;
+}
+.quote-card:hover { background: var(--black); color: var(--white); }
+.quote-card .quote-text { font-size: .9rem; line-height: 1.75; font-weight: 500; margin: 0; }
+.quote-card .quote-author {
+  margin-top: .8rem;
+  font-size: .72rem;
+  color: #888;
+  letter-spacing: .08em;
+  font-style: normal;
+}
+.quote-card:hover .quote-author { color: #bbb; }
+
 .empty { padding: 2rem 0; font-size: .9rem; }
 
 /* ===== 文章页 ===== */
